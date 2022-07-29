@@ -1,0 +1,244 @@
+<head>
+    <title>Reset Device Tags</title>
+    <script src="./js/knockout.js"></script>
+    <script src="./js/bootstrap.bundle.min.js"></script>
+    <link href="./css/bootstrap.min.css" rel="stylesheet" />
+</head>
+
+<body>
+    <div id="app" class="container">
+        <div class="row p-3 border bg-light" id="deviceDetails">
+            <div class="col">
+                <div class="mb-3">
+                    <label for="applicationId" class="form-label">Application Id</label>
+                    <input id="applicationId" class="form-control" data-bind="value: applicationId"></input>
+                    <div id="applicationIdHelp" class="form-text">The Pushwoosh Application Id</div>
+                </div>
+            </div>
+            <div class="col">
+                <div class="mb-3">
+                    <label for="deviceId" class="form-label">Device Id</label>
+                    <input id="deviceId" class="form-control" data-bind="value: deviceId"></input>
+                    <div id="deviceIdHelp" class="form-text">The Device/Hardware Id</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-12 p-3">
+                <button class="btn btn-primary w-100" id="fetchDeviceTags" type="button"
+                    data-bind="click: fetchDeviceTags, enable: applicationId && deviceId">Get Tags</button>
+            </div>
+        </div>
+
+        <div class="row p-3" data-bind="visible: tags().length">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th scope="col">Tag</th>
+                        <th scope="col">Value</th>
+                        <th scope="col">Update Value</th>
+                    </tr>
+                </thead>
+                <tbody data-bind="template: {name: 'tag-row-template', foreach: tags}">
+                </tbody>
+            </table>
+            <div>
+                <button class="btn btn-primary w-100" id="initialize" type="button"
+                    data-bind="click: confirmUpdate">Update
+                    Tags</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="confirmUpdate" tabindex="-1" role="dialog" aria-labelledby="exampleModalLabel"
+        aria-hidden="true">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="exampleModalLabel">Update These Tags?</h5>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="authToken" class="form-label">API Key for <span
+                                data-bind="text: applicationId"></span></label>
+                        <input id="authToken" class="form-control" data-bind="value: apiKey"></input>
+                    </div>
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th scope="col">Tag</th>
+                                <th scope="col">Value</th>
+                                <th scope="col">Update Value</th>
+                            </tr>
+                        </thead>
+                        <tbody data-bind="template: {name: 'tag-update-template', foreach: tagsToUpdate}">
+                        </tbody>
+                    </table>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bind="click: cancelUpdate">Cancel</button>
+                    <button type="button" class="btn btn-primary" data-bind="click: updateTags">Update</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script type="text/html" id="tag-update-template">
+        <tr data-bind="attr: { id: name }">
+            <td data-bind="text: name"></td>
+            <td data-bind="text: value"></td>
+            <td data-bind="text: newValue"></td>
+        </tr>
+    </script>
+
+    <script type="text/html" id="tag-row-template">
+        <tr data-bind="attr: { id: name }">
+            <td data-bind="text: name"></td>
+            <td data-bind="text: value"></td>
+            <td>
+                <input type="text" class="form-control" data-bind="value: newValue">
+            </td>
+        </tr>
+    </script>
+
+    <script type="text/javascript">
+        window.onload = () => {
+
+            function ViewModel() {
+                this.applicationId = ko.observable("");
+                this.deviceId = ko.observable("");
+
+                this.apiKey = ko.observable("").extend({ rateLimit: { timeout: 1000, method: "notifyWhenChangesStop" } });
+
+                this.tags = ko.observableArray([]);
+                this.confirmUpdateModal = new bootstrap.Modal(document.getElementById('confirmUpdate'), {});
+
+                this.confirmUpdate = () => {
+                    this.confirmUpdateModal.show();
+                };
+
+                this.cancelUpdate = () => {
+                    this.confirmUpdateModal.hide();
+                };
+
+                this.tagsToUpdate = ko.computed(() => {
+                    var tags = [];
+                    this.tags().forEach(element => {
+                        if (element.newValue()) {
+                            tags.push(element);
+                        }
+                    });
+                    return tags;
+                });
+
+                this.updateTags = async () => {
+                    const tags = this.tagsToUpdate();
+
+                    var tagsMapped = {};
+
+                    tags.forEach(element => {
+                        if (!isNaN(element.value)) {
+                            tagsMapped[element.name] = Number(element.newValue());
+                        } else {
+                            tagsMapped[element.name] = element.newValue();
+                        }
+                    });
+
+                    console.log(tags);
+
+                    const response = await fetch("./api/v2/audience/bulkSetTags", {
+                        method: 'POST',
+                        headers: {
+                            "Content-Type": "application/json"
+                        },
+                        referrerPolicy: 'no-referrer', // no-referrer, *no-referrer-when-downgrade, origin, origin-when-cross-origin, same-origin, strict-origin, strict-origin-when-cross-origin, unsafe-url
+                        body: JSON.stringify({
+                            "application": this.applicationId(),
+                            "auth": this.apiKey(),
+                            "create_missing_tags": false,
+                            "devices": [{
+                                "hwid": this.deviceId(),
+                                "list_operator": "set",
+                                "tags": tagsMapped
+                            }]
+                        })
+                    });
+
+                    if (response.status == 200) {
+                        const responseBody = await response.json();
+
+                        const updateStatus = await fetch(`./api/v2/audience/bulkSetTags/${responseBody.request_id}?detailed=false`, {
+                            method: 'GET',
+                            referrerPolicy: 'no-referrer', // no-referrer, *no-referrer-when-downgrade, origin, origin-when-cross-origin, same-origin, strict-origin, strict-origin-when-cross-origin, unsafe-url
+                        });
+
+                        if (updateStatus.status == 200) {
+                            const updateStatusBody = await updateStatus.json();
+
+                            if (updateStatusBody.status == "Completed") {
+                                this.confirmUpdateModal.hide();
+                                await this.fetchDeviceTags();
+                            } else {
+
+                            }
+                        }
+                    }
+                }
+
+                this.fetchDeviceTags = async () => {
+
+                    this.tags([]);
+
+                    const response = await fetch("https://cp.pushwoosh.com/json/1.3/getTags", {
+                        method: 'POST',
+                        // mode: 'cors', // no-cors, *cors, same-origin
+                        headers: {
+                            "Content-Type": "application/json"
+                        },
+                        // redirect: 'follow', // manual, *follow, error
+                        referrerPolicy: 'no-referrer', // no-referrer, *no-referrer-when-downgrade, origin, origin-when-cross-origin, same-origin, strict-origin, strict-origin-when-cross-origin, unsafe-url
+                        body: JSON.stringify({
+                            request: {
+                                "application": this.applicationId(),
+                                "hwid": this.deviceId()
+                            }
+                        })
+                    });
+
+                    if (response.status == 200) {
+                        const deviceTags = await response.json();
+
+                        for (const key in deviceTags.response.result) {
+                            if (Object.hasOwnProperty.call(deviceTags.response.result, key)) {
+                                const element = deviceTags.response.result[key];
+                                this.tags.push({
+                                    name: key,
+                                    value: JSON.stringify(element),
+                                    newValue: ko.observable(null),
+                                });
+                            }
+                        }
+
+                    } else {
+                        alert(`Response status: ${response.status}, Body: ${response.body.text}`)
+                    }
+                }
+            }
+
+            var viewModel = new ViewModel();
+            viewModel.applicationId.subscribe((newValue) => {
+                viewModel.apiKey(window.localStorage.getItem(`API_KEY_${newValue}`));
+            });
+            viewModel.apiKey.subscribe((newValue) => {
+                if (newValue) {
+                    window.localStorage.setItem(`API_KEY_${viewModel.applicationId()}`, newValue);
+                } else {
+                    window.localStorage.removeItem(`API_KEY_${viewModel.applicationId()}`);
+                }
+            });
+
+            ko.applyBindings(viewModel);
+        }
+    </script>
+</body>

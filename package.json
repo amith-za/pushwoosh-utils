@@ -1,0 +1,23 @@
+{
+  "name": "pushwoosh-utils",
+  "version": "1.0.0",
+  "description": "Some utils for Pushwoosh",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/amith-za/pushwoosh-utils.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/amith-za/pushwoosh-utils/issues"
+  },
+  "homepage": "https://github.com/amith-za/pushwoosh-utils#readme",
+  "dependencies": {
+    "express": "^4.18.1",
+    "request": "^2.88.2"
+  }
+}
