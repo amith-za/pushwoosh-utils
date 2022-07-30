@@ -78,7 +78,7 @@
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bind="click: cancelUpdate">Cancel</button>
-                    <button type="button" class="btn btn-primary" data-bind="click: updateTags">Update</button>
+                    <button type="button" class="btn btn-primary" data-bind="click: updateTags, enable: apiKey">Update</button>
                 </div>
             </div>
         </div>
@@ -147,7 +147,7 @@
 
                     console.log(tags);
 
-                    const response = await fetch("./api/v2/audience/bulkSetTags", {
+                    const response = await fetch("/api/v2/audience/bulkSetTags", {
                         method: 'POST',
                         headers: {
                             "Content-Type": "application/json"
@@ -168,7 +168,7 @@
                     if (response.status == 200) {
                         const responseBody = await response.json();
 
-                        const updateStatus = await fetch(`./api/v2/audience/bulkSetTags/${responseBody.request_id}?detailed=false`, {
+                        const updateStatus = await fetch(`/api/v2/audience/bulkSetTags/${responseBody.request_id}?detailed=false`, {
                             method: 'GET',
                             referrerPolicy: 'no-referrer', // no-referrer, *no-referrer-when-downgrade, origin, origin-when-cross-origin, same-origin, strict-origin, strict-origin-when-cross-origin, unsafe-url
                         });
