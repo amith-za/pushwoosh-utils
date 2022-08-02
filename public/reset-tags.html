@@ -78,7 +78,8 @@
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bind="click: cancelUpdate">Cancel</button>
-                    <button type="button" class="btn btn-primary" data-bind="click: updateTags, enable: apiKey">Update</button>
+                    <button type="button" class="btn btn-primary"
+                        data-bind="click: updateTags, enable: apiKey">Update</button>
                 </div>
             </div>
         </div>
@@ -138,10 +139,14 @@
                     var tagsMapped = {};
 
                     tags.forEach(element => {
-                        if (!isNaN(element.value)) {
-                            tagsMapped[element.name] = Number(element.newValue());
-                        } else {
-                            tagsMapped[element.name] = element.newValue();
+                        try {
+                            tagsMapped[element.name] = JSON.parse(element.newValue());
+                        } catch (error) {
+                            if (!isNaN(element.value)) {
+                                tagsMapped[element.name] = Number(element.newValue());
+                            } else {
+                                tagsMapped[element.name] = element.newValue();
+                            }
                         }
                     });
 
